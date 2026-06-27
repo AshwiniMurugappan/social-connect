@@ -35,12 +35,40 @@ export default function ConnectPlatform() {
 
   const info = PLATFORM_INFO[platform || ""] || PLATFORM_INFO["instagram"];
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setLoading(true);
-    // Simulate connecting (replace with real OAuth later)
-    setTimeout(() => {
-      navigate(`/success/${platform}`);
-    }, 1500);
+    try {
+      // Get OAuth URL from backend
+      const res  = await fetch(`http://localhost:5000/auth/${platform}`);
+      const data = await res.json();
+
+      // Open OAuth popup
+      const popup = window.open(data.url, "oauth", "width=500,height=600");
+
+      // Listen for success message from backend
+      window.addEventListener("message", (event) => {
+        if (event.origin !== "http://localhost:5000") return;
+        if (event.data.type === "OAUTH_SUCCESS") {
+          navigate(`/success/${platform}`);
+        }
+        if (event.data.type === "OAUTH_ERROR") {
+          setLoading(false);
+          alert("Connection failed. Please try again.");
+        }
+      });
+
+      // Fallback — check if popup closed
+      const timer = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(timer);
+          setLoading(false);
+        }
+      }, 500);
+
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
   return (
