@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = "https://twin-backend-production-3a12.up.railway.app";
 
 export async function saveConnection(platform: string) {
   const response = await fetch(`${BACKEND_URL}/connections`, {
