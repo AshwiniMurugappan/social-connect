@@ -38,30 +38,47 @@ export default function ConnectPlatform() {
   const handleConnect = async () => {
     setLoading(true);
     try {
-      // Get OAuth URL from backend
-      const res  = await fetch(`http://localhost:5000/auth/${platform}`);
+      const res  = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://twin-backend-production-3a12.up.railway.app'}/auth/${platform}`);
       const data = await res.json();
 
-      // Open OAuth popup
-      const popup = window.open(data.url, "oauth", "width=500,height=600");
+      const popup = window.open(data.url, "oauth", "width=500,height=600,left=400,top=100");
 
       // Listen for success message from backend
-      window.addEventListener("message", (event) => {
-        if (event.origin !== "http://localhost:5000") return;
+      const messageHandler = (event: MessageEvent) => {
         if (event.data.type === "OAUTH_SUCCESS") {
+          window.removeEventListener("message", messageHandler);
+          clearInterval(timer);
           navigate(`/success/${platform}`);
         }
         if (event.data.type === "OAUTH_ERROR") {
+          window.removeEventListener("message", messageHandler);
+          clearInterval(timer);
           setLoading(false);
           alert("Connection failed. Please try again.");
         }
-      });
+      };
 
-      // Fallback — check if popup closed
+      window.addEventListener("message", messageHandler);
+
+      // Fallback — if popup closes without message
       const timer = setInterval(() => {
         if (popup?.closed) {
           clearInterval(timer);
-          setLoading(false);
+          window.removeEventListener("message", messageHandler);
+          // Check if connected by calling backend
+          fetch(`https://twin-backend-production-3a12.up.railway.app/connections?userId=1`)
+            .then(r => r.json())
+            .then(data => {
+              const isConnected = data.connections.some(
+                (c: { platform: string }) => c.platform === platform
+              );
+              if (isConnected) {
+                navigate(`/success/${platform}`);
+              } else {
+                setLoading(false);
+              }
+            })
+            .catch(() => setLoading(false));
         }
       }, 500);
 
